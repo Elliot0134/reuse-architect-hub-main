@@ -9,6 +9,7 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 export const useProjects = () => {
+  console.log('[useProjects.ts] Hook initializing');
   const [projects, setProjects] = useState<Project[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -34,21 +35,29 @@ export const useProjects = () => {
   }, [projects]);
   
   useEffect(() => {
+    console.log('[useProjects.ts] useEffect for fetchProjects triggered');
     fetchProjects();
   }, []);
   
   useEffect(() => {
+    console.log('[useProjects.ts] useEffect for applyFiltersAndSort triggered');
     applyFiltersAndSort();
   }, [projects, statusFilter, sortOrder, searchTerm]); // Ajout de searchTerm aux dépendances
 
   const fetchProjects = async () => {
+    console.log('[useProjects.ts] fetchProjects called');
     setIsLoading(true);
     try {
+      console.log('[useProjects.ts] Attempting to fetch projects from Supabase');
       const { data, error } = await supabase
         .from('projects')
         .select('*');
       
-      if (error) throw error;
+      if (error) {
+        console.error('[useProjects.ts] Supabase fetch error:', error);
+        throw error;
+      }
+      console.log('[useProjects.ts] Supabase fetch successful, data:', data);
       
       const formattedProjects: Project[] = data.map((project: any) => ({
         id: project.id,

@@ -15,6 +15,7 @@ const PROJECT_STATUSES_ORDERED: ProjectStatus[] = ['draft', 'in_progress', 'pend
 
 
 const Index: React.FC = () => {
+  console.log('[Index.tsx] Component rendering/mounting');
   const {
     filteredProjects,
     statusFilter,

@@ -44,13 +44,18 @@ const Login: React.FC = () => {
   };
 
   const handleDemoLogin = () => {
+    console.log('[Login.tsx] handleDemoLogin called');
     localStorage.setItem('isAuthenticated', 'true');
+    console.log('[Login.tsx] isAuthenticated set to true in localStorage');
     localStorage.setItem('userEmail', 'demo@hackathon.fr');
+    console.log('[Login.tsx] userEmail set in localStorage');
     toast({
       title: "Mode démo activé",
       description: "Vous naviguez maintenant en mode démo",
     });
+    console.log('[Login.tsx] Navigating to /');
     navigate('/');
+    console.log('[Login.tsx] Called navigate("/")');
   };
 
   return (
