@@ -13,7 +13,8 @@ import {
   Archive,
   SpellCheck2,
   LogOut,
-  LayoutDashboard // Ajout de l'icône pour le Dashboard
+  LayoutDashboard, // Ajout de l'icône pour le Dashboard
+  ChevronRight // Pour les sous-menus
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -30,15 +31,33 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ collapsed, toggleCollapse }) => {
   const location = useLocation();
-  
-  const menuItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="h-5 w-5" /> }, // Ajout du lien Dashboard
-    { path: '/', label: 'Projets', icon: <Folder className="h-5 w-5" /> },
-    { path: '/generate-content', label: 'Générer du contenu', icon: <FileText className="h-5 w-5" /> },
-    { path: '/templates', label: 'Templates rapports', icon: <Book className="h-5 w-5" /> },
-    { path: '/reports', label: 'Rapports', icon: <Archive className="h-5 w-5" /> }, // Ajout du lien Rapports
-    { path: '/chat-reports', label: 'Discuter avec les rapports', icon: <MessageSquare className="h-5 w-5" /> },
-    { path: '/spell-checker', label: 'Correcteur', icon: <SpellCheck2 className="h-5 w-5" /> },
+
+  const sidebarConfig = [
+    {
+      type: 'link',
+      path: '/dashboard',
+      label: 'Dashboard',
+      icon: <LayoutDashboard className="h-5 w-5" />,
+      isDashboard: true,
+    },
+    {
+      type: 'category',
+      label: 'Ressources',
+      items: [
+        { path: '/', label: 'Projets', icon: <Folder className="h-5 w-5" /> },
+        { path: '/reports', label: 'Rapports', icon: <Archive className="h-5 w-5" /> },
+        { path: '/templates', label: 'Modèles de rapport', icon: <Book className="h-5 w-5" /> },
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Outils',
+      items: [
+        { path: '/chat-reports', label: 'Discuter avec les rapports', icon: <MessageSquare className="h-5 w-5" /> },
+        { path: '/generate-content', label: 'Générer du contenu', icon: <FileText className="h-5 w-5" /> },
+        { path: '/spell-checker', label: 'Correcteur', icon: <SpellCheck2 className="h-5 w-5" /> },
+      ],
+    },
   ];
 
   const handleShowProfile = () => {
@@ -73,26 +92,71 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, toggleCollapse }) => {
         
         <nav className="p-2">
           <ul className="space-y-1">
-            {menuItems.map((item) => (
-              <li key={item.path}>
-                <NavLink
-                  to={item.path}
-                  className={({ isActive }) => 
-                    cn(
-                      "sidebar-link",
-                      isActive ? "active" : "",
-                      "flex items-center gap-3 px-4 py-3 rounded-md transition-colors",
-                      {
-                        "justify-center": collapsed
-                      }
-                    )
-                  }
-                >
-                  {item.icon}
-                  {!collapsed && <span>{item.label}</span>}
-                </NavLink>
-              </li>
-            ))}
+            {sidebarConfig.map((section, sectionIndex) => {
+              if (section.type === 'link') {
+                return (
+                  <li key={section.path}>
+                    <NavLink
+                      to={section.path}
+                      className={({ isActive }) => {
+                        const isDashboard = section.isDashboard;
+                        return cn(
+                          "sidebar-link flex items-center gap-3 px-4 py-3 rounded-md transition-colors",
+                          {
+                            // Styles pour le Dashboard
+                            "bg-[#eb661a] text-white hover:bg-[#d35a17]": isDashboard && !isActive, // Orange vif par défaut
+                            // Gérer l'état actif pour le dashboard et les autres liens
+                            "active": (isDashboard && isActive) || (!isDashboard && isActive),
+                            // Styles pour les autres liens non actifs
+                            "hover:bg-neutral-100": !isDashboard && !isActive,
+                            "justify-center": collapsed,
+                          }
+                        );
+                      }}
+                    >
+                      {section.icon}
+                      {!collapsed && <span>{section.label}</span>}
+                    </NavLink>
+                  </li>
+                );
+              }
+              if (section.type === 'category') {
+                return (
+                  <li key={sectionIndex} className="pt-2">
+                    {!collapsed && (
+                      <div className="px-4 py-2 text-xs font-semibold text-neutral-500 uppercase tracking-wider">
+                        {section.label}
+                      </div>
+                    )}
+                    {collapsed && (
+                       <div className="flex justify-center py-2">
+                         <ChevronRight className="h-4 w-4 text-neutral-400" />
+                       </div>
+                    )}
+                    <ul className="space-y-1">
+                      {section.items.map((item) => (
+                        <li key={item.path}>
+                          <NavLink
+                            to={item.path}
+                            className={({ isActive }) =>
+                              cn(
+                                "sidebar-link flex items-center gap-3 px-4 py-3 rounded-md transition-colors hover:bg-neutral-100",
+                                isActive ? "active" : "",
+                                { "justify-center": collapsed }
+                              )
+                            }
+                          >
+                            {item.icon}
+                            {!collapsed && <span>{item.label}</span>}
+                          </NavLink>
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                );
+              }
+              return null;
+            })}
           </ul>
         </nav>
       </div>

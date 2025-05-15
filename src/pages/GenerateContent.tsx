@@ -8,7 +8,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card'; // Ajout de Card et CardContent
 import { Calendar } from "@/components/ui/calendar"; // Ajout de Calendar
-import { Copy, RefreshCw, FileUp, Facebook, Instagram, Linkedin, Newspaper } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"; // Ajout de Popover
+import { cn } from "@/lib/utils"; // Ajout de cn
+import { format } from "date-fns"; // Ajout de format
+import { fr } from "date-fns/locale"; // Ajout de la locale fr
+import { Copy, RefreshCw, FileUp, Facebook, Instagram, Linkedin, Newspaper, Calendar as CalendarIcon } from 'lucide-react'; // Ajout de CalendarIcon
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Dialog, 
@@ -356,6 +360,33 @@ Si le problème persiste, contactez le support.`,
                 className="mt-1"
                 rows={3}
               />
+            </div>
+
+            <div>
+              <Label htmlFor="generation-date">Date de génération (optionnel)</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal mt-1",
+                      !calendarDate && "text-muted-foreground"
+                    )}
+                    id="generation-date"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {calendarDate ? format(calendarDate, "PPP", { locale: fr }) : <span>Choisir une date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={calendarDate}
+                    onSelect={setCalendarDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             
             <div className="pt-2">

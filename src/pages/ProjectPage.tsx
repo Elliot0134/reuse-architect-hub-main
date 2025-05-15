@@ -23,11 +23,8 @@ import ReactMarkdown from 'react-markdown'; // Ré-ajouté
 import remarkGfm from 'remark-gfm'; // Ajouté
 // import { marked } from 'marked'; // Supprimé
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'; // Ajouté pour les sources
-
-// Initialisation du client Supabase
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+import GeneratedReportPartsViewer from './GeneratedReportPartsViewer'; // Ajouté
+import { supabase } from '@/lib/supabaseClient'; // Modifié pour utiliser le client centralisé
 
 interface Document {
   id: string; // Corresponds à 'id' de la table Supabase 'documents'
@@ -390,38 +387,81 @@ const ProjectPage: React.FC = () => {
     }
     
     setIsSubmitting(true);
-    
-    try {
-      // Appel au webhook de génération de rapport
-      const response = await fetch('https://api.ia2s.app/webhook/raedificare/rapport/part/create', {
+    let isFirstSuccessfulRequest = true;
+
+    const generationPromises = selectedSections.map(sectionId => {
+      return fetch('https://api.ia2s.app/webhook/raedificare/rapport/part/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           project_id: id,
-          part_ids: selectedSections,
+          template_part_id: sectionId,
           instructions: customInstructions || undefined,
         }),
+      })
+      .then(response => {
+        if (!response.ok) {
+          // Ne pas jeter d'erreur ici pour permettre aux autres promesses de continuer,
+          // mais logger l'erreur pour la section spécifique.
+          console.error(`Erreur HTTP ${response.status} pour la section ${sectionId}`);
+          response.json().then(errData => console.error("Détails de l'erreur:", errData)).catch(() => {}); // Logguer les détails si possible
+          return { success: false, sectionId };
+        }
+        return response.json().then(data => ({ success: true, sectionId, data }));
+      })
+      .catch(error => {
+        console.error(`Erreur lors de la génération de la section ${sectionId}:`, error);
+        return { success: false, sectionId };
       });
+    });
+
+    // Gérer les réponses au fur et à mesure
+    generationPromises.forEach(promise => {
+      promise.then(result => {
+        if (result.success && isFirstSuccessfulRequest) {
+          isFirstSuccessfulRequest = false;
+          toast({
+            title: "Génération en cours",
+            description: `La génération de la section (ID: ${result.sectionId}) a commencé. D'autres suivront.`,
+          });
+          // Rediriger dès la première réponse réussie
+          setActiveTab('generatedParts');
+        } else if (!result.success) {
+          toast({
+            title: "Erreur de Génération",
+            description: `La génération de la section (ID: ${result.sectionId}) a échoué.`,
+            variant: "destructive",
+          });
+        }
+      });
+    });
+
+    try {
+      await Promise.all(generationPromises); // Attendre que toutes les requêtes soient initiées (pas forcément terminées)
       
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      
+      // Réinitialiser l'état du formulaire une fois que toutes les requêtes ont été envoyées
+      // (même si certaines échouent, l'utilisateur est déjà redirigé et notifié)
       setIsGenerateDialogOpen(false);
       setSelectedTemplate('');
       setSelectedSections([]);
       setCustomInstructions('');
       
-      toast({
-        title: "Succès",
-        description: "Les sections ont été générées avec succès",
-      });
-    } catch (error) {
-      console.error('Erreur lors de la génération du rapport:', error);
+      // Un toast global peut être redondant si on notifie par section
+      // Mais on peut en ajouter un pour dire que le processus est lancé pour toutes les sections.
+      if (selectedSections.length > 0 && isFirstSuccessfulRequest) {
+        // Ce cas ne devrait pas arriver si au moins une requête réussit et redirige.
+        // Si toutes échouent avant la première redirection, on pourrait afficher un message global d'échec.
+      } else if (selectedSections.length > 0) {
+         toast({
+            title: "Génération Lancée",
+            description: "Toutes les demandes de génération de section ont été envoyées.",
+          });
+      }
+
+    } catch (error) { // Ce catch est pour Promise.all, mais les erreurs individuelles sont déjà gérées
+      console.error('Erreur globale lors du lancement des générations de rapport:', error);
       toast({
         title: "Erreur",
         description: "Impossible de générer les sections du rapport",
@@ -516,6 +556,7 @@ const ProjectPage: React.FC = () => {
           <TabsTrigger value="documents">Documents importés</TabsTrigger>
           <TabsTrigger value="chat">Discussion</TabsTrigger>
           <TabsTrigger value="report">Générer une partie du rapport</TabsTrigger>
+          <TabsTrigger value="generatedParts">Parties Générées</TabsTrigger> 
         </TabsList>
         
         <TabsContent value="documents">
@@ -597,17 +638,15 @@ const ProjectPage: React.FC = () => {
                       >
                         {message.sender === 'bot' ? (
                           <>
-                            <h3 className="font-semibold mb-1 text-2xl">Réponse</h3>
-                            <div className="prose prose-sm max-w-none break-words mb-3">
+                            <div className="prose prose-sm max-w-none break-words">
                               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                                 {message.text}
                               </ReactMarkdown>
                             </div>
                             {message.sourceDocuments && message.sourceDocuments.length > 0 && (
                               <>
-                                <Separator className="my-2 bg-neutral-300" />
-                                <h3 className="font-semibold mb-2 text-2xl">Sources</h3>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <Separator className="my-3 bg-neutral-300" />
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
                                   {message.sourceDocuments.map(doc => (
                                     <Card key={doc.id} className="bg-neutral-50 shadow-none border-neutral-200 overflow-hidden">
                                       <CardContent className="p-2 text-xs">
@@ -640,7 +679,12 @@ const ProjectPage: React.FC = () => {
                   {isBotReplying && (
                     <div className="mb-4 flex justify-start">
                       <div className="max-w-3/4 p-3 rounded-lg bg-neutral-100 text-neutral-800 rounded-tl-none">
-                        <p className="animate-pulse">...</p> 
+                        <div className="flex items-center">
+                          <span className="mr-2 text-neutral-600">IA est en train d'écrire</span>
+                          <span className="animate-pulse-dot">.</span>
+                          <span className="animate-pulse-dot animation-delay-200">.</span>
+                          <span className="animate-pulse-dot animation-delay-400">.</span>
+                        </div>
                         <span className="text-xs block mt-1 text-neutral-500">
                           {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
@@ -752,6 +796,14 @@ const ProjectPage: React.FC = () => {
               </Button>
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="generatedParts">
+          {id ? (
+            <GeneratedReportPartsViewer projectId={id} />
+          ) : (
+            <p>ID de projet non disponible.</p>
+          )}
         </TabsContent>
       </Tabs>
       

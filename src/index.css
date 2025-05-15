@@ -106,3 +106,24 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  .animation-delay-200 {
+    animation-delay: 0.2s;
+  }
+  .animation-delay-400 {
+    animation-delay: 0.4s;
+  }
+  .animate-pulse-dot {
+    animation: pulse-dot 1.4s infinite;
+    opacity: 0; /* Start invisible, animation will make it visible */
+  }
+  @keyframes pulse-dot {
+    0%, 80%, 100% {
+      opacity: 0;
+    }
+    40% {
+      opacity: 1;
+    }
+  }
+}

@@ -31,35 +31,27 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
         </button>
         
         <div className="breadcrumb">
-          {pathSegments.length === 0 ? (
-            <span>Projets</span>
-          ) : (
-            <>
-              <a href="/" className="hover:text-primary">Projets</a>
-              <span>/</span>
-              {pathSegments.map((segment, index) => {
-                const path = `/${pathSegments.slice(0, index + 1).join('/')}`;
-                const isLast = index === pathSegments.length - 1;
-                
-                return (
-                  <span key={path}>
-                    {isLast ? (
-                      <span className={cn(isLast && 'font-medium text-neutral-800')}>
-                        {pathNames[segment] || segment}
-                      </span>
-                    ) : (
-                      <>
-                        <a href={path} className="hover:text-primary">
-                          {pathNames[segment] || segment}
-                        </a>
-                        <span>/</span>
-                      </>
-                    )}
+          {pathSegments.length === 0 && <span>Projets</span>}
+          {pathSegments.map((segment, index) => {
+            const path = `/${pathSegments.slice(0, index + 1).join('/')}`;
+            const isLast = index === pathSegments.length - 1;
+            const displayName = pathNames[segment] || segment;
+
+            return (
+              <React.Fragment key={path}>
+                {index > 0 && <span className="mx-1">/</span>}
+                {isLast ? (
+                  <span className={cn('font-medium text-neutral-800')}>
+                    {displayName}
                   </span>
-                );
-              })}
-            </>
-          )}
+                ) : (
+                  <a href={path} className="hover:text-primary">
+                    {displayName}
+                  </a>
+                )}
+              </React.Fragment>
+            );
+          })}
         </div>
       </div>
       

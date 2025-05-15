@@ -1,9 +1,9 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import MainLayout from '../layouts/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Send, MessageSquare, RefreshCw, Search, X, FileText } from 'lucide-react'; // Importer Search, X et FileText
+import { Send, MessageSquare, RefreshCw, Search, X, FileText, History } from 'lucide-react'; // History ajoutée
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import { Separator } from '@/components/ui/separator'; // Ajouté
@@ -15,6 +15,12 @@ import {
   DialogFooter,
   DialogDescription, // Ajouté pour le sous-titre
 } from '@/components/ui/dialog';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Label } from '@/components/ui/label';
 import { createClient } from '@supabase/supabase-js'; // Importer Supabase
 import ReactMarkdown from 'react-markdown'; // Ré-ajouté
@@ -49,6 +55,7 @@ const ChatWithReports: React.FC = () => {
   const [isSending, setIsSending] = useState(false);
   const [sessionId, setSessionId] = useState('');
   const { toast } = useToast();
+  const messagesEndRef = useRef<null | HTMLDivElement>(null);
 
   const [isSearchDialogOpen, setIsSearchDialogOpen] = useState(false);
   const [searchReportName, setSearchReportName] = useState('');
@@ -62,6 +69,14 @@ const ChatWithReports: React.FC = () => {
   useEffect(() => {
     setSessionId(uuidv4());
   }, []);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [chatHistory]);
   
   const handleSearchReports = async () => {
     setIsSearching(true);
@@ -223,8 +238,42 @@ const ChatWithReports: React.FC = () => {
           </Button>
         </div>
       )}
+
+      {/* Section Historique du Chat en Accordéon, ouvert par défaut */}
+      <Accordion type="single" collapsible defaultValue="chat-history" className="w-full mb-4">
+        <AccordionItem value="chat-history" className="border border-neutral-200 rounded-lg bg-neutral-50 shadow-sm">
+          <AccordionTrigger className="px-4 py-3 hover:no-underline w-full flex justify-between items-center">
+            <div className="flex items-center">
+              <History className="h-5 w-5 mr-2 text-primary" /> {/* Icône changée pour History */}
+              <span className="text-sm font-medium text-neutral-700">Historique des conversations</span>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-4 pt-0 pb-3">
+            <div className="max-h-48 overflow-y-auto space-y-2">
+              {/* Simuler quelques entrées d'historique */}
+              {[
+                { id: 'hist1', title: 'Discussion sur le rapport X (Hier)', snippet: 'Quel était le principal problème identifié dans le diagnostic amiante ?' },
+                { id: 'hist2', title: 'Analyse du projet Y (09/05/2025)', snippet: 'Les matériaux réutilisables sont principalement des menuiseries et des équipements sanitaires.' },
+                { id: 'hist3', title: 'Questions générales (08/05/2025)', snippet: 'Comment puis-je optimiser la génération de contenu pour LinkedIn ?' },
+                { id: 'hist4', title: 'Rapport Z - Précisions (07/05/2025)', snippet: 'Pourriez-vous détailler la section sur les recommandations de dépose ?' },
+                 { id: 'hist5', title: 'Autre discussion (06/05/2025)', snippet: 'Quelles sont les options pour les déchets non valorisables ?' },
+              ].map(item => (
+                <div key={item.id} className="p-2 rounded-md border border-neutral-200 hover:bg-neutral-100 cursor-pointer transition-colors">
+                  <p className="text-xs font-medium text-neutral-800 truncate" title={item.title}>{item.title}</p>
+                  <p className="text-xs text-neutral-500 truncate" title={item.snippet}>{item.snippet}</p>
+                </div>
+              ))}
+              <p className="text-xs text-neutral-400 text-center pt-2">
+                (Fonctionnalité d'historique complet à venir)
+              </p>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
       
-      <div className="bg-white rounded-lg border border-neutral-200 shadow-sm min-h-[600px] flex flex-col">
+      {/* Ajustement de la hauteur du conteneur principal du chat pour mieux gérer le scroll interne */}
+      {/* La hauteur est maintenant plus dynamique, mais on garde un min-height pour la zone de chat */}
+      <div className="bg-white rounded-lg border border-neutral-200 shadow-sm flex flex-col" style={{ minHeight: '400px', maxHeight: 'calc(100vh - 280px)' }}> {/* Ajusté pour être plus flexible */}
         <div className="bg-neutral-50 p-4 border-b border-neutral-200">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-full bg-primary-50 text-primary">
@@ -244,7 +293,7 @@ const ChatWithReports: React.FC = () => {
           </div>
         </div>
         
-        <div className="flex-1 p-4 overflow-y-auto">
+        <div className="flex-1 p-4 overflow-y-auto"> {/* Zone d'affichage des messages actuels */}
           {chatHistory.length === 0 && !isSending && (
             <div className="text-center text-neutral-500 py-10">
               <MessageSquare size={48} className="mx-auto mb-4 opacity-50" />
@@ -266,17 +315,15 @@ const ChatWithReports: React.FC = () => {
               >
                 {msg.sender === 'bot' ? (
                   <>
-                    <h3 className="font-semibold mb-1 text-2xl">Réponse</h3>
-                    <div className="prose prose-sm max-w-none break-words mb-3">
+                    <div className="prose prose-sm max-w-none break-words">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
                         {msg.text}
                       </ReactMarkdown>
                     </div>
                     {msg.sourceDocuments && msg.sourceDocuments.length > 0 && (
                       <>
-                        <Separator className="my-2 bg-neutral-300" />
-                        <h3 className="font-semibold mb-2 text-2xl">Sources</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <Separator className="my-3 bg-neutral-300" />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
                           {msg.sourceDocuments.map(doc => (
                             <Card key={doc.id} className="bg-neutral-50 shadow-none border-neutral-200 overflow-hidden">
                               <CardContent className="p-2 text-xs">
@@ -307,12 +354,21 @@ const ChatWithReports: React.FC = () => {
             </div>
           ))}
            {isSending && (
-             <div className="mb-6 flex justify-start">
-               <div className="max-w-3/4 p-4 rounded-lg bg-neutral-100 text-neutral-800 rounded-tl-none">
-                 <div className="whitespace-pre-wrap">...</div>
-               </div>
-             </div>
+            <div className="mb-6 flex justify-start">
+              <div className="max-w-3/4 p-4 rounded-lg bg-neutral-100 text-neutral-800 rounded-tl-none">
+                <div className="flex items-center">
+                  <span className="mr-2 text-neutral-600">IA est en train d'écrire</span>
+                  <span className="animate-pulse-dot">.</span>
+                  <span className="animate-pulse-dot animation-delay-200">.</span>
+                  <span className="animate-pulse-dot animation-delay-400">.</span>
+                </div>
+                <span className="text-xs block mt-1 text-neutral-500">
+                  {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+            </div>
            )}
+          <div ref={messagesEndRef} /> {/* Élément vide pour le défilement automatique */}
         </div>
         
         <form onSubmit={handleSendMessage} className="border-t border-neutral-200 p-4">
